@@ -153,10 +153,3 @@ clarinet call <contract-address> get-volunteer-summary \
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-```
-
-This README provides a clear structure with:
-- **Overview** of the contract's purpose.
-- **Data structures** and **functions**.
-- **Error handling** details.
-- **Installation and usage** instructions, including command-line examples for interacting with the smart contract.
