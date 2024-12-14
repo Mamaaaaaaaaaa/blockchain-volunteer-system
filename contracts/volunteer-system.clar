@@ -459,3 +459,54 @@
         ERR-NOT-FOUND ;; Return error if profile not found
     )
 )
+
+(define-read-only (is-volunteer-profile-incomplete (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (if (or (is-eq (get name profile) "")
+                        (is-eq (get location profile) "")
+                        (is-eq (len (get skills profile)) u0))
+                    (ok true) ;; Return true if profile is incomplete
+                    (ok false)) ;; Return false if profile is complete
+        ERR-NOT-FOUND ;; Return error if profile not found
+    )
+)
+
+(define-read-only (get-volunteer-skills-availability-summary (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (ok {
+            skills: (get skills profile),
+            hours-available: (get hours-available profile)
+        }) ;; Return skills and availability summary if profile found
+        ERR-NOT-FOUND ;; Return error if profile not found
+    )
+)
+
+(define-read-only (is-volunteer-profile-valid (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (if (and (not (is-eq (get name profile) ""))
+                         (not (is-eq (get location profile) ""))
+                         (> (len (get skills profile)) u0)
+                         (> (get hours-available profile) u0))
+                    (ok true) ;; Return true if profile is valid
+                    (ok false)) ;; Return false if profile is invalid
+        ERR-NOT-FOUND ;; Return error if profile not found
+    )
+)
+
+(define-read-only (get-volunteer-hours-location (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (ok {
+            hours-available: (get hours-available profile),
+            location: (get location profile)
+        }) ;; Return hours and location if profile found
+        ERR-NOT-FOUND ;; Return error if profile not found
+    )
+)
+
+;; Get the total number of hours a volunteer is available
+(define-read-only (get-volunteer-total-hours (user principal))
+    (match (map-get? volunteer-profiles user)
+        profile (ok (get hours-available profile)) ;; Return the total available hours
+        ERR-NOT-FOUND ;; Return error if the profile is not found
+    )
+)
