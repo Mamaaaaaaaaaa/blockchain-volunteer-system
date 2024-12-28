@@ -128,6 +128,104 @@
     )
 )
 
+;; Add a single skill to a volunteer's existing skills list
+(define-public (add-volunteer-skill (skill (string-ascii 50)))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (match existing-profile
+            profile 
+            (let 
+                (
+                    (current-skills (get skills profile))
+                    (updated-skills (unwrap-panic (as-max-len? (append current-skills skill) u10)))
+                )
+                (map-set volunteer-profiles caller 
+                    (merge profile { skills: updated-skills })
+                )
+                (ok "Skill added successfully.")
+            )
+            (err ERR-NOT-FOUND)
+        )
+    )
+)
+
+;; Increment the number of hours a volunteer is available
+(define-public (increment-volunteer-hours (hours-to-add uint))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (match existing-profile
+            profile 
+            (let 
+                (
+                    (current-hours (get hours-available profile))
+                    (updated-hours (+ current-hours hours-to-add))
+                )
+                (map-set volunteer-profiles caller 
+                    (merge profile { hours-available: updated-hours })
+                )
+                (ok "Volunteer hours incremented successfully.")
+            )
+            (err ERR-NOT-FOUND)
+        )
+    )
+)
+
+;; Decrement the number of hours a volunteer is available
+(define-public (decrement-volunteer-hours (hours-to-subtract uint))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (match existing-profile
+            profile 
+            (let 
+                (
+                    (current-hours (get hours-available profile))
+                )
+                (if (>= current-hours hours-to-subtract)
+                    (begin
+                        (map-set volunteer-profiles caller 
+                            (merge profile { hours-available: (- current-hours hours-to-subtract) })
+                        )
+                        (ok "Volunteer hours decremented successfully.")
+                    )
+                    (err ERR-INVALID-HOURS)
+                )
+            )
+            (err ERR-NOT-FOUND)
+        )
+    )
+)
+
+;; Update the location for a volunteer profile
+(define-public (update-volunteer-location (new-location (string-ascii 100)))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (if (is-eq new-location "")
+            (err ERR-INVALID-HOURS)
+            (match existing-profile
+                profile 
+                (begin
+                    (map-set volunteer-profiles caller 
+                        (merge profile { location: new-location })
+                    )
+                    (ok "Volunteer location updated successfully.")
+                )
+                (err ERR-NOT-FOUND)
+            )
+        )
+    )
+)
 
 ;; ========================
 ;; SECTION 4: READ-ONLY FUNCTIONS
@@ -430,6 +528,7 @@
     )
 )
 
+;; Get the name and location of a volunteer
 (define-read-only (get-volunteer-name-location (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (ok {
@@ -440,6 +539,7 @@
     )
 )
 
+;; Get the number of skills and hours available for a volunteer
 (define-read-only (get-volunteer-skills-availability (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (ok {
@@ -450,6 +550,7 @@
     )
 )
 
+;; Get the volunteer's location and a summary of their skills (number of skills)
 (define-read-only (get-volunteer-location-skills-summary (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (ok {
@@ -460,6 +561,7 @@
     )
 )
 
+;; Check if the volunteer profile is incomplete (missing required fields)
 (define-read-only (is-volunteer-profile-incomplete (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (if (or (is-eq (get name profile) "")
@@ -471,6 +573,7 @@
     )
 )
 
+;; Get the volunteer's skills and hours available summary
 (define-read-only (get-volunteer-skills-availability-summary (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (ok {
@@ -481,6 +584,7 @@
     )
 )
 
+;; Check if the volunteer profile is valid (contains all necessary fields)
 (define-read-only (is-volunteer-profile-valid (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (if (and (not (is-eq (get name profile) ""))
@@ -493,6 +597,7 @@
     )
 )
 
+;; Get the hours available and location of a volunteer
 (define-read-only (get-volunteer-hours-location (user principal))
     (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
         profile (ok {
@@ -510,3 +615,52 @@
         ERR-NOT-FOUND ;; Return error if the profile is not found
     )
 )
+
+;; Check if a volunteer is located in a specific location
+(define-read-only (is-volunteer-in-location (user principal) (location-query (string-ascii 100)))
+    (match (map-get? volunteer-profiles user)
+        profile (if (is-eq (get location profile) location-query)
+                      (ok true) ;; Return true if the location matches
+                      (ok false)) ;; Return false if the location does not match
+        ERR-NOT-FOUND ;; Return error if the profile is not found
+    )
+)
+
+;; Check if a volunteer has enough available hours (greater than a specific number)
+(define-read-only (has-enough-available-hours (user principal) (required-hours uint))
+    (match (map-get? volunteer-profiles user)
+        profile (if (>= (get hours-available profile) required-hours)
+                      (ok true) ;; Return true if the volunteer has enough hours
+                      (ok false)) ;; Return false if the volunteer does not have enough hours
+        ERR-NOT-FOUND ;; Return error if the profile is not found
+    )
+)
+
+;; Check if a volunteer is available for more than X hours
+(define-read-only (is-volunteer-available-more-than-x (user principal) (min-hours uint))
+    (match (map-get? volunteer-profiles user)
+        profile (if (> (get hours-available profile) min-hours)
+                    (ok true) ;; Return true if the volunteer is available for more than X hours
+                    (ok false)) ;; Return false if not
+        ERR-NOT-FOUND ;; Return error if profile not found
+    )
+)
+
+;; Check if volunteer has a location set
+(define-read-only (is-volunteer-location-set (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (if (is-eq (get location profile) "")
+                     (ok false) ;; Return false if no location is set
+                     (ok true)) ;; Return true if location is set
+        ERR-NOT-FOUND ;; Return error if the profile is not found
+    )
+)
+
+;; Get volunteer skills count
+(define-read-only (get-volunteer-skills-count (user principal))
+    (match (map-get? volunteer-profiles user) ;; Look up the profile for the given user
+        profile (ok (len (get skills profile))) ;; Return the count of skills
+        ERR-NOT-FOUND ;; Return error if the profile is not found
+    )
+)
+
