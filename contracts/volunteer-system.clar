@@ -227,6 +227,104 @@
     )
 )
 
+;; Replace all skills for a volunteer profile
+(define-public (replace-volunteer-skills (new-skills (list 10 (string-ascii 50))))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (if (is-eq (len new-skills) u0)
+            (err ERR-INVALID-SKILLS)
+            (match existing-profile
+                profile 
+                (begin
+                    (map-set volunteer-profiles caller 
+                        (merge profile { skills: new-skills })
+                    )
+                    (ok "Volunteer skills replaced successfully.")
+                )
+                (err ERR-NOT-FOUND)
+            )
+        )
+    )
+)
+
+;; Update the name for a volunteer profile
+(define-public (update-volunteer-name (new-name (string-ascii 100)))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (if (is-eq new-name "")
+            (err ERR-INVALID-HOURS)
+            (match existing-profile
+                profile 
+                (begin
+                    (map-set volunteer-profiles caller 
+                        (merge profile { name: new-name })
+                    )
+                    (ok "Volunteer name updated successfully.")
+                )
+                (err ERR-NOT-FOUND)
+            )
+        )
+    )
+)
+
+;; Reset the available hours for a volunteer profile
+(define-public (reset-volunteer-hours (new-hours uint))
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (if (< new-hours u1)
+            (err ERR-INVALID-HOURS)
+            (match existing-profile
+                profile 
+                (begin
+                    (map-set volunteer-profiles caller 
+                        (merge profile { hours-available: new-hours })
+                    )
+                    (ok "Volunteer hours reset successfully.")
+                )
+                (err ERR-NOT-FOUND)
+            )
+        )
+    )
+)
+
+;; Create a backup of the current volunteer profile
+(define-map volunteer-profile-backups 
+    principal 
+    {
+        name: (string-ascii 100),
+        location: (string-ascii 100),
+        skills: (list 10 (string-ascii 50)),
+        hours-available: uint
+    }
+)
+
+(define-public (backup-volunteer-profile)
+    (let 
+        (
+            (caller tx-sender)
+            (existing-profile (map-get? volunteer-profiles caller))
+        )
+        (match existing-profile
+            profile 
+            (begin
+                (map-set volunteer-profile-backups caller profile)
+                (ok "Volunteer profile backed up successfully.")
+            )
+            (err ERR-NOT-FOUND)
+        )
+    )
+)
+
+
 ;; ========================
 ;; SECTION 4: READ-ONLY FUNCTIONS
 ;; ========================
